@@ -1,0 +1,6 @@
+{
+  "name": "AGENT HUB",
+  "description": "Multi-agent AI decision-support system for emergency and disaster management featuring six collaborative agents.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
