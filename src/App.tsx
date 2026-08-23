@@ -8,7 +8,9 @@ import {
   ResponsePriority,
 } from './types/emergency';
 import { PRESET_SCENARIOS } from './data/presetScenarios';
-import { Header } from './components/Header';
+import { Navbar, ActiveView } from './components/Navbar';
+import { LandingPage } from './components/LandingPage';
+import { Footer } from './components/Footer';
 import { EmergencyInputForm } from './components/EmergencyInputForm';
 import { SituationMap } from './components/SituationMap';
 import { AgentNetworkPanel } from './components/AgentNetworkPanel';
@@ -19,8 +21,12 @@ import { JudgeWalkthroughModal } from './components/JudgeWalkthroughModal';
 import { ExportBriefingModal } from './components/ExportBriefingModal';
 import { EnteringInterface } from './components/EnteringInterface';
 import { soundManager } from './utils/audioAlerts';
+import { ArrowLeft, LayoutDashboard, Sparkles, Play, Activity } from 'lucide-react';
 
 export default function App() {
+  // Navigation & View State
+  const [activeView, setActiveView] = useState<ActiveView>('landing');
+
   // Scenario state (pre-filled with Flood demo)
   const [scenario, setScenario] = useState<EmergencyScenario>(
     PRESET_SCENARIOS[0]
@@ -35,7 +41,7 @@ export default function App() {
     useState<MultiAgentAnalysisResult | null>(null);
 
   // Modals state
-  const [showGateway, setShowGateway] = useState<boolean>(true);
+  const [showGateway, setShowGateway] = useState<boolean>(false);
   const [inspectAgentId, setInspectAgentId] = useState<AgentType | null>(null);
   const [showJudgeGuide, setShowJudgeGuide] = useState<boolean>(false);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
@@ -746,100 +752,196 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0A0E14] text-slate-200 flex flex-col font-sans selection:bg-blue-500 selection:text-white">
-      {/* Header Bar */}
-      <Header
+      {/* Top Universal Navbar */}
+      <Navbar
+        activeView={activeView}
+        setActiveView={setActiveView}
         isRunning={isRunning}
-        onRunAnalysis={() => handleRunAnalysis()}
+        onRunAnalysis={() => {
+          setActiveView('dashboard');
+          handleRunAnalysis();
+        }}
         onReset={handleReset}
-        onLoadFloodDemo={handleLoadFloodDemo}
+        onLoadFloodDemo={() => {
+          handleLoadFloodDemo();
+          setActiveView('dashboard');
+        }}
         onOpenGuide={() => setShowJudgeGuide(true)}
         onOpenExport={() => setShowExportModal(true)}
         onOpenGateway={() => setShowGateway(true)}
         hasResult={!!analysisResult}
       />
 
-      {/* Main Command Center Grid */}
-      <main className="flex-1 max-w-[1750px] w-full mx-auto p-2 sm:p-2.5 space-y-2.5">
-        {/* Top 3-Column Layout: Left (Input) | Center (Map) | Right (Agent Network) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
-          {/* Left Panel: Emergency Scenario Form (3 cols) */}
-          <div className="lg:col-span-4 xl:col-span-3">
-            <EmergencyInputForm
-              scenario={scenario}
-              onChangeScenario={setScenario}
-              onRunAnalysis={() => handleRunAnalysis()}
-              isRunning={isRunning}
-              onSelectPreset={handleSelectPreset}
-            />
-          </div>
-
-          {/* Center Panel: Situation Map & Tactical Grid (5 cols) */}
-          <div className="lg:col-span-8 xl:col-span-5 flex flex-col">
-            <SituationMap
-              scenario={scenario}
-              isAnalyzing={isRunning}
-              activeAgentId={activeAgentId}
-              riskAgentOutput={agents.risk?.detailedOutput}
-              riskAgentStatus={agents.risk?.status}
-              analysisResult={analysisResult}
-            />
-          </div>
-
-          {/* Right Panel: 6 AI Agent Network (4 cols) */}
-          <div className="lg:col-span-12 xl:col-span-4">
-            <AgentNetworkPanel
-              agents={agents}
-              onInspectAgent={(id) => setInspectAgentId(id)}
-              isRunning={isRunning}
-              activeAgentId={activeAgentId}
-            />
-          </div>
-        </div>
-
-        {/* Bottom Section: Response Plan (When Available or Running) & Live Activity Logs */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
-          {/* Live Agent Activity Terminal Log (4 cols) */}
-          <div className="lg:col-span-4">
-            <AgentActivityLogs
-              logs={logs}
-              onClearLogs={() => setLogs([])}
-              isRunning={isRunning}
-            />
-          </div>
-
-          {/* Final Recommended Response Plan (8 cols) */}
-          <div className="lg:col-span-8">
-            {analysisResult ? (
-              <RecommendedResponsePlan
-                result={analysisResult}
-                onApproveAll={handleApproveAll}
-                isAllApproved={isAllApproved}
-                onTogglePriorityApproval={handleTogglePriorityApproval}
-                approvedPriorities={approvedPriorities}
-              />
-            ) : (
-              <div className="bg-[#151B26] border border-slate-700/50 rounded p-6 h-full flex flex-col items-center justify-center text-center text-slate-400">
-                <div className="w-10 h-10 rounded bg-[#0A0E14] border border-slate-700 flex items-center justify-center text-slate-500 mb-2">
-                  <span className="text-base font-black font-mono text-blue-400">P#</span>
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-white mb-1">
-                  Awaiting Multi-Agent Decision Synthesis
-                </h3>
-                <p className="text-[11px] text-slate-400 max-w-md mb-3 leading-relaxed">
-                  Click <strong className="text-amber-400">"START ANALYSIS"</strong> or <strong className="text-blue-400">"LOAD DEMO"</strong> to initiate the 6-agent collaborative reasoning pipeline.
-                </p>
-                <button
-                  onClick={() => handleRunAnalysis()}
-                  disabled={isRunning}
-                  className="px-3 py-1.5 rounded text-[10px] font-bold uppercase bg-blue-600 hover:bg-blue-500 text-white transition shadow-md shadow-blue-900/30"
-                >
-                  Run Demo Analysis Now →
-                </button>
+      {/* Conditional View Rendering: Landing Page vs Command Dashboard */}
+      {activeView === 'dashboard' ? (
+        <div className="flex-1 flex flex-col">
+          {/* Dashboard Context Bar */}
+          <div className="bg-[#111722] border-b border-slate-800 px-4 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveView('landing')}
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-white font-medium transition py-1 px-2 rounded hover:bg-slate-800"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Return to Overview</span>
+              </button>
+              <div className="h-4 w-px bg-slate-700 hidden sm:block"></div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white font-mono uppercase">
+                  ACTIVE MISSION:
+                </span>
+                <span className="text-xs font-bold text-cyan-300 font-mono">
+                  {scenario.title}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-950 text-red-400 border border-red-500/40 font-mono font-bold">
+                  {scenario.severity}
+                </span>
               </div>
-            )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowGateway(true)}
+                className="text-[11px] font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded border border-slate-700 uppercase transition"
+              >
+                Switch Disaster Preset
+              </button>
+              <button
+                onClick={() => handleRunAnalysis()}
+                disabled={isRunning}
+                className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded uppercase shadow-sm shadow-blue-900/30 transition disabled:opacity-50"
+              >
+                {isRunning ? (
+                  <>
+                    <Activity className="w-3 h-3 animate-spin text-amber-200" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3 h-3 fill-white" />
+                    <span>Run Synthesis</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Main Command Center Grid */}
+          <main className="flex-1 max-w-[1750px] w-full mx-auto p-2 sm:p-2.5 space-y-2.5">
+            {/* Top 3-Column Layout: Left (Input) | Center (Map) | Right (Agent Network) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
+              {/* Left Panel: Emergency Scenario Form (3 cols) */}
+              <div className="lg:col-span-4 xl:col-span-3">
+                <EmergencyInputForm
+                  scenario={scenario}
+                  onChangeScenario={setScenario}
+                  onRunAnalysis={() => handleRunAnalysis()}
+                  isRunning={isRunning}
+                  onSelectPreset={handleSelectPreset}
+                />
+              </div>
+
+              {/* Center Panel: Situation Map & Tactical Grid with D3 Heatmap (5 cols) */}
+              <div className="lg:col-span-8 xl:col-span-5 flex flex-col">
+                <SituationMap
+                  scenario={scenario}
+                  isAnalyzing={isRunning}
+                  activeAgentId={activeAgentId}
+                  riskAgentOutput={agents.risk?.detailedOutput}
+                  riskAgentStatus={agents.risk?.status}
+                  analysisResult={analysisResult}
+                />
+              </div>
+
+              {/* Right Panel: 6 AI Agent Network (4 cols) */}
+              <div className="lg:col-span-12 xl:col-span-4">
+                <AgentNetworkPanel
+                  agents={agents}
+                  onInspectAgent={(id) => setInspectAgentId(id)}
+                  isRunning={isRunning}
+                  activeAgentId={activeAgentId}
+                />
+              </div>
+            </div>
+
+            {/* Bottom Section: Response Plan & Live Activity Logs */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
+              {/* Live Agent Activity Terminal Log (4 cols) */}
+              <div className="lg:col-span-4">
+                <AgentActivityLogs
+                  logs={logs}
+                  onClearLogs={() => setLogs([])}
+                  isRunning={isRunning}
+                />
+              </div>
+
+              {/* Final Recommended Response Plan (8 cols) */}
+              <div className="lg:col-span-8">
+                {analysisResult ? (
+                  <RecommendedResponsePlan
+                    result={analysisResult}
+                    onApproveAll={handleApproveAll}
+                    isAllApproved={isAllApproved}
+                    onTogglePriorityApproval={handleTogglePriorityApproval}
+                    approvedPriorities={approvedPriorities}
+                  />
+                ) : (
+                  <div className="bg-[#151B26] border border-slate-700/50 rounded p-6 h-full flex flex-col items-center justify-center text-center text-slate-400">
+                    <div className="w-10 h-10 rounded bg-[#0A0E14] border border-slate-700 flex items-center justify-center text-slate-500 mb-2">
+                      <span className="text-base font-black font-mono text-blue-400">P#</span>
+                    </div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-white mb-1">
+                      Awaiting Multi-Agent Decision Synthesis
+                    </h3>
+                    <p className="text-[11px] text-slate-400 max-w-md mb-3 leading-relaxed">
+                      Click <strong className="text-amber-400">"START ANALYSIS"</strong> or <strong className="text-blue-400">"LOAD DEMO"</strong> to initiate the 6-agent collaborative reasoning pipeline.
+                    </p>
+                    <button
+                      onClick={() => handleRunAnalysis()}
+                      disabled={isRunning}
+                      className="px-3 py-1.5 rounded text-[10px] font-bold uppercase bg-blue-600 hover:bg-blue-500 text-white transition shadow-md shadow-blue-900/30"
+                    >
+                      Run Demo Analysis Now →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </main>
         </div>
-      </main>
+      ) : (
+        /* Full Landing Page Overview */
+        <LandingPage
+          onLaunchDashboard={() => setActiveView('dashboard')}
+          onSelectScenarioAndLaunch={(scen) => {
+            setScenario(scen);
+            handleReset();
+            setActiveView('dashboard');
+            setTimeout(() => {
+              handleRunAnalysis(scen);
+            }, 100);
+          }}
+          onOpenGuide={() => setShowJudgeGuide(true)}
+          onOpenGateway={() => setShowGateway(true)}
+          currentScenario={scenario}
+          isRunning={isRunning}
+          hasResult={!!analysisResult}
+        />
+      )}
+
+      {/* Universal Footer */}
+      <Footer
+        onNavigate={(view) => {
+          setActiveView(view);
+          if (view !== 'dashboard') {
+            const el = document.getElementById(view);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+            else window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        onOpenGateway={() => setShowGateway(true)}
+        onOpenGuide={() => setShowJudgeGuide(true)}
+      />
 
       {/* Deep Agent Inspection Modal */}
       {inspectAgentId && (
@@ -853,7 +955,10 @@ export default function App() {
       {showJudgeGuide && (
         <JudgeWalkthroughModal
           onClose={() => setShowJudgeGuide(false)}
-          onLoadFloodDemo={handleLoadFloodDemo}
+          onLoadFloodDemo={() => {
+            handleLoadFloodDemo();
+            setActiveView('dashboard');
+          }}
         />
       )}
 
@@ -877,6 +982,7 @@ export default function App() {
           setScenario(found);
           handleReset();
           setShowGateway(false);
+          setActiveView('dashboard');
           if (autoRun) {
             setTimeout(() => {
               handleRunAnalysis(found);
@@ -889,6 +995,7 @@ export default function App() {
         }}
         onEnterCustomRoom={() => {
           setShowGateway(false);
+          setActiveView('dashboard');
         }}
       />
     </div>
